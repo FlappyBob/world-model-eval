@@ -137,62 +137,6 @@ def load_tasks(root):
             base = os.path.splitext(file)[0]
             yield os.path.join(root, base)
 
-TASKS = {
-    "/vast/as20482/data/bridge/robot_evaluation/put_carrot_on_plate/": {
-        "instruction": "put carrot on plate",
-        "subtasks": ["Pick up the carrot.", "Place the carrot on the plate."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/put_eggplant_into_pot_or_pan/": {
-        "instruction": "put eggplant into pot or pan",
-        "subtasks": ["Pick up the eggplant.", "Place the eggplant into the pot or pan."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/close_microwave/": {
-        "instruction": "close microwave",
-        "subtasks": ["Push the microwave door.", "Close the microwave door completely."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/stack_blocks/": {
-        "instruction": "stack blocks",
-        "subtasks": ["Pick up a block.", "Place a block on top of another block."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/close_oven/": {
-        "instruction": "close oven",
-        "subtasks": ["Push the oven door.", "Close the oven door completely."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/open_microwave/": {
-        "instruction": "open the microwave",
-        "subtasks": ["Grab microwave handle.", "Pull microwave open."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/sweep_into_pile/": {
-        "instruction": "sweep into pile",
-        "subtasks": ["Grab the beam.", "Use the beam to sweep into pile."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/fold_cloth/": {
-        "instruction": "fold cloth",
-        "subtasks": ["Pick up one end of the cloth.", "Fold the cloth over."],
-    },
-    "/vast/as20482/data/bridge/robot_evaluation/open_oven/": {
-        "instruction": "open oven",
-        "subtasks": ["Grab oven handle.", "Pull oven open."],
-    },
-}
-
-CATEGORY_MAP = {
-    ("language_conditioning",): "Language grounding",
-    ("ood","easy"): "Visual gen",
-    ("ood","hard","motion_generalization"): "Motion gen",
-    ("ood","hard","physical_generalization"): "Physical gen",
-    ("ood","hard","semantic_generalization"): "Semantic gen",
-    ("ood","hard","visual_generalization"): "Visual gen",
-}
-
-def _infer_category(root_path: Path, task_dir: Path):
-    rel = task_dir.relative_to(root_path)
-    parts = rel.parts
-    for key, val in sorted(CATEGORY_MAP.items(), key=lambda x: -len(x[0])):
-        if parts[:len(key)] == key:
-            return val
-    return "Uncategorized"
-
 def _titleize(name: str):
     name = name.replace("--", " ")
     return " ".join(w.capitalize() for w in re.split(r"[_\\-]+", name))
@@ -218,13 +162,11 @@ def discover_trials(root_dir):
             print(f"[WARN] No instruction in {meta_path}")
             continue
         partial = meta.get("partial_credit_criteria")
-        category = _infer_category(root_path, task_dir)
         task_key = str(task_dir.relative_to(root_path))
         trials.append({
             "trial_png": str(png),
             "instruction": instruction,
             "partial_criteria": partial,
-            "category": category,
             "task_key": task_key,
             "task_display": _titleize(task_dir.name),
         })
@@ -236,7 +178,6 @@ def aggregate_model_results(results):
         key = r["task_key"]
         if key not in tasks:
             tasks[key] = {
-                "Category": r["category"],
                 "Task": r["task_display"],
                 "# Trials": 0,
                 "# Successes": 0.0,
@@ -244,7 +185,7 @@ def aggregate_model_results(results):
         tasks[key]["# Trials"] += 1
         tasks[key]["# Successes"] += float(r["score"])
 
-    task_list = sorted(tasks.values(), key=lambda x: (x["Category"], x["Task"]))
+    task_list = sorted(tasks.values(), key=lambda x: x["Task"])
 
     per_trial_scores = []
     for t in task_list:
@@ -260,19 +201,17 @@ def aggregate_model_results(results):
 
 def print_results_table(agg):
     tasks = agg["tasks"]
-    header = ["Category", "Task", "# Trials", "# Successes"]
+    header = ["Task", "# Trials", "# Successes"]
     col_w = [len(h) for h in header]
     for t in tasks:
-        col_w[0] = max(col_w[0], len(t["Category"]))
-        col_w[1] = max(col_w[1], len(t["Task"]))
-        col_w[2] = max(col_w[2], len(str(t["# Trials"])))
-        col_w[3] = max(col_w[3], len(str(t["# Successes"])))
+        col_w[0] = max(col_w[0], len(t["Task"]))
+        col_w[1] = max(col_w[1], len(str(t["# Trials"])))
+        col_w[2] = max(col_w[2], len(str(t["# Successes"])))
     fmt = lambda row: " | ".join(str(v).ljust(col_w[i]) for i, v in enumerate(row))
     print(fmt(header))
     print("-" * (sum(col_w) + 3 * (len(header) - 1)))
     for t in tasks:
         print(fmt([
-            t["Category"],
             t["Task"],
             t["# Trials"],
             t["# Successes"]

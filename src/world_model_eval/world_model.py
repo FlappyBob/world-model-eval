@@ -2,9 +2,9 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import einops
-from model import DiT, AttentionType, RotaryType
-from vae import VAE
-from diffusion import Diffusion
+from .model import DiT, AttentionType, RotaryType
+from .vae import VAE
+from .diffusion import Diffusion
 
 
 class WorldModel:

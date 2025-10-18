@@ -1,7 +1,6 @@
 """Runs inference with a RT-1 model."""
 
 import copy
-import os
 from collections import deque
 
 import mediapy as media
@@ -18,9 +17,9 @@ import torch
 from tqdm import tqdm
 from pathlib import Path
 
-import rt1
-from world_model import WorldModel
-from utils import (
+from .rt1 import rt1
+from .world_model import WorldModel
+from .utils import (
     rescale_bridge_action,
     discover_trials,
     predict,
@@ -28,10 +27,67 @@ from utils import (
     print_results_table,
 )
 
+CHECKPOINTS_TO_KWARGS = {
+    "bridge_v2_ckpt.pt": {
+        "use_pixel_rope": True,
+    },
+    "mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt": {
+        "use_pixel_rope": False,
+        "default_cfg": 3.0,
+    },
+}
+
 _CHECKPOINT_PATH = flags.DEFINE_string(
-    'checkpoint_path', None, 'Path to checkpoint.'
+    "checkpoint_path",
+    None,
+    "Path to RT-1 JAX checkpoint directory.",
 )
-flags.mark_flag_as_required('checkpoint_path')
+_WORLD_MODEL_CKPT = flags.DEFINE_string(
+    "world_model_checkpoint",
+    None,
+    "Path to world-model checkpoint (.pt).",
+)
+_ROOT_DIR = flags.DEFINE_string(
+    "root_dir",
+    None,
+    "Directory containing evaluation trials.",
+)
+_ROLLOUT_LENGTH = flags.DEFINE_integer(
+    "rollout_length",
+    40,
+    "Number of simulation steps per rollout.",
+)
+_RETRIES = flags.DEFINE_integer(
+    "retries",
+    1,
+    "Number of retries per trial.",
+)
+_SAVE_VIDEO = flags.DEFINE_bool(
+    "save_video",
+    False,
+    "Whether to save rollout videos.",
+)
+_VIDEO_OUT_DIR = flags.DEFINE_string(
+    "video_out_dir",
+    None,
+    "Directory to store rollout videos when --save_video is set.",
+)
+
+flags.mark_flag_as_required("checkpoint_path")
+flags.mark_flag_as_required("world_model_checkpoint")
+flags.mark_flag_as_required("root_dir")
+
+
+def _configure_tensorflow():
+  """Force TensorFlow ops to run on CPU to avoid CUDA handle issues."""
+  try:
+    tf.config.set_visible_devices([], "GPU")
+  except (RuntimeError, ValueError):
+    # Happens if GPUs are already initialized or unavailable; safe to ignore.
+    pass
+
+# Optional - can remove
+_configure_tensorflow()
 
 # Load the sentence encoder once
 _USE = None
@@ -75,10 +131,10 @@ class RT1Policy:
 
   def _run_action_inference(self, observation, rng):
     """A jittable function for running inference."""
-    # Zero action tokens; RT-1 does not use action history by default.
+
     act_tokens = jnp.zeros((1, 6, 11))
 
-    # Add a batch dim to the observation.
+
     batch_obs = jax.tree_util.tree_map(lambda x: jnp.expand_dims(x, 0), observation)
 
     _, random_rng = jax.random.split(rng)
@@ -100,7 +156,6 @@ class RT1Policy:
     action_logp = jax.nn.softmax(action_logits)
     action_token = jnp.argmax(action_logp, axis=-1)
 
-    # Detokenize the full action sequence.
     detokenized = rt1.detokenize_action(
         action_token, self.model.vocab_size, self.model.world_vector_range
     )
@@ -110,10 +165,9 @@ class RT1Policy:
 
   def action(self, observation):
     """Outputs the action given observation from the env."""
-    # Assume obs has no batch dimensions.
+
     observation = copy.deepcopy(observation)
 
-    # JAX does not support strings in jit; remove if present.
     observation.pop('natural_language_instruction', None)
 
     image = observation['image']  # [T, H, W, 3], uint8 or float
@@ -146,13 +200,13 @@ def _build_rt1_observation(frame_hist, instr_embed):
   imgs = np.stack(frame_hist, axis=0)  # [T, H, W, 3], uint8
   nle = np.tile(instr_embed[None, :], (T, 1))  # [T, 512]
   return {
-      'image': jnp.array(imgs),                    # policy rescales and resizes
+      'image': jnp.array(imgs),
       'natural_language_embedding': jnp.array(nle, dtype=jnp.float32),
   }
 
 
 def evaluate_rt1(wm: WorldModel, policy: RT1Policy, trials, rollout_length=40, retries=1,
-                 history_len=15, save_video=False, video_out_dir=None):
+                 history_len=15, save_video=False, video_out_dir=None, root_dir=None):
   """
   Evaluate RT-1 on discovered trials using the world model. Returns a list of per-trial dicts with 'score'.
   """
@@ -165,17 +219,17 @@ def evaluate_rt1(wm: WorldModel, policy: RT1Policy, trials, rollout_length=40, r
   with torch.no_grad():
     for trial in tqdm(trials, desc="RT-1 trials"):
       start_frame = np.array(Image.open(trial["trial_png"]).resize((256, 256)))
-      # Precompute instruction embedding (512) and cast to np
+
       emb = use([trial['instruction']]).numpy()[0].astype(np.float32)
 
       for r in range(retries):
         wm.reset(torch.from_numpy(start_frame).cuda().float() / 255.0)
         frames = [start_frame]
-        # History buffer with last `history_len` original-res frames
+
         hist = deque([start_frame] * history_len, maxlen=history_len)
 
-        for step in tqdm(range(rollout_length)):
-          # Build RT-1 observation from history and instruction embedding
+        for step in range(rollout_length):
+
           obs = _build_rt1_observation(hist, emb)
           detok = policy.action(obs)
 
@@ -195,11 +249,9 @@ def evaluate_rt1(wm: WorldModel, policy: RT1Policy, trials, rollout_length=40, r
           gripper = float(grip.reshape(-1)[0])  # already in [-1,1]
           a7 = torch.tensor([x, y, z, roll, pitch, yaw, gripper], device="cuda", dtype=torch.float32)
 
-          # Pad to 10 and rescale for world model (ignore base tokens)
           a10 = torch.cat([a7, a7.new_zeros(3)], dim=-1)
           a10 = rescale_bridge_action(a10, wv_lo=-1, wv_hi=1, rd_lo=-1, rd_hi=1)
 
-          # Roll out one chunk (single action)
           for _, x in wm.generate_chunk(a10):
             new_frame = x[0, 0].cpu().numpy()
             new_frame = np.clip(new_frame * 255, 0, 255).astype(np.uint8)
@@ -209,25 +261,29 @@ def evaluate_rt1(wm: WorldModel, policy: RT1Policy, trials, rollout_length=40, r
         rollout_video = np.stack(frames)
         if save_video and video_out_dir:
           trial_png = Path(trial["trial_png"])
-          safe_dir = trial_png.parent.as_posix().replace("/", "__")
+          rel_parent = (
+              trial_png.parent
+              if root_dir is None
+              else trial_png.parent.relative_to(Path(root_dir))
+          )
+          target_dir = Path(video_out_dir) / rel_parent
+          target_dir.mkdir(parents=True, exist_ok=True)
           stem = trial_png.stem
-          # out_name = f"{safe_dir}__{stem}__r{r}_len{len(frames)}.mp4"
           out_name = f"{stem}.mp4"
-          media.write_video(str(Path(video_out_dir) / out_name), rollout_video, fps=20)
+          media.write_video(str(target_dir / out_name), rollout_video, fps=20)
 
         score = predict(rollout_video, trial)
         results.append({
             "task_key": trial["task_key"],
-            "category": trial["category"],
             "task_display": trial["task_display"],
             "score": float(score),
         })
   return results
 
 
-def main(argv):
+def _absl_main(argv):
   del argv
-  # RT-1-X config (matches example)
+  # RT-1-X config
   sequence_length = 15
   num_action_tokens = 11
   layer_size = 256
@@ -247,43 +303,47 @@ def main(argv):
       seqlen=sequence_length,
   )
 
-  CHECKPOINTS_TO_KWARGS = {
-      "bridge_v2_ckpt.pt": {  # The demo model checkpoint from our original arxiv release.
-          "use_pixel_rope": True,
-      },
-      "mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt": { #200k_20frame_cfg_bridgev2_ckpt.pt": {  # New in-progress model with CFG and EMA.
-          "use_pixel_rope": False,
-          "default_cfg": 3.0,
-      },
-  }
-  FILESERVER_URL = "https://85daf289d906.ngrok.app"#"https://85daf289d906.ngrok.app"  # This might change.
+  checkpoint_path = Path(_CHECKPOINT_PATH.value)
+  if not checkpoint_path.exists():
+    raise FileNotFoundError(
+        f"RT-1 checkpoint not found at {_CHECKPOINT_PATH.value}. Provide a valid path."
+    )
 
-  ckpt_path = "mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt"#"200k_20frame_cfg_bridgev2_ckpt.pt"  # Take your pick from above.
-  if not Path(ckpt_path).exists():
-      ckpt_url = FILESERVER_URL + "/" + ckpt_path
-      print(f"{ckpt_url=}")
-      os.system(f"wget {ckpt_url}")
+  wm_path = Path(_WORLD_MODEL_CKPT.value)
+  if not wm_path.exists():
+    raise FileNotFoundError(
+        f"World model checkpoint not found at {_WORLD_MODEL_CKPT.value}. "
+        "Pass --world_model_checkpoint with a valid file."
+    )
 
-  wm = WorldModel(ckpt_path, **CHECKPOINTS_TO_KWARGS[ckpt_path])
+  root_dir = _ROOT_DIR.value
+  if root_dir is None:
+    raise ValueError("root_dir must be provided via --root_dir to locate evaluation trials.")
 
-  # Discover and run
-  ROOT_DIR = "/vast/as20482/data/bridge/ood_language"  # update as needed
-  trials = discover_trials(ROOT_DIR)
+  wm = WorldModel(wm_path, **CHECKPOINTS_TO_KWARGS.get(wm_path.name, {}))
+
+  trials = discover_trials(root_dir)
   print(f"Discovered {len(trials)} trials.")
 
   results = evaluate_rt1(
-      wm, policy, trials,
-      rollout_length=40, retries=1,
+      wm,
+      policy,
+      trials,
+      rollout_length=_ROLLOUT_LENGTH.value,
+      retries=_RETRIES.value,
       history_len=sequence_length,
-      save_video=True,
-      video_out_dir=f"/vast/as20482/data/bridge/rollouts/ood_language/v2/rt1"
+      save_video=_SAVE_VIDEO.value,
+      video_out_dir=_VIDEO_OUT_DIR.value,
+      root_dir=root_dir,
   )
 
   agg = aggregate_model_results(results)
   print_results_table(agg)
 
 
-if __name__ == '__main__':
-  app.run(main)
+def main():
+  app.run(_absl_main)
 
-#python run_rt1.py --checkpoint_path=/scratch/as20482/open_x_embodiment/rt_1_x_jax
+
+if __name__ == '__main__':
+  main()

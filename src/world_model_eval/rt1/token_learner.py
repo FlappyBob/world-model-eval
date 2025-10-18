@@ -1,4 +1,6 @@
-"""Token Learner implementation from https://arxiv.org/abs/2106.11297.
+"""Code borrowed from https://github.com/google-deepmind/open_x_embodiment/blob/main/models/token_learner.py
+
+Token Learner implementation from https://arxiv.org/abs/2106.11297.
 
 Implementation from github.com/google-research/scenic/projects/token_learner/.
 """

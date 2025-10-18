@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "world-model-eval"
+version = "0.1.0"
+description = "Evaluation pipeline for robot policies using a video diffusion world model."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Julian Quevedo" },
+  { name = "Ansh Sharma" },
+  { name = "Yixiang Sun" },
+  { name = "Varad Suryavanshi" },
+  { name = "Percy Liang" },
+  { name = "Sherry Yang" },
+]
+dependencies = [
+  "accelerate>=1.10.0",
+  "torch>=2.5.0",
+  "torchvision>=0.20.0",
+  "einops==0.8.1",
+  "mediapy==1.2.4",
+  "numpy==1.26.4",
+  "tqdm==4.67.1",
+  "pillow==11.3.0",
+  "opencv-python==4.11.0.86",
+  "pytorchvideo==0.1.5",
+  "diffusers==0.35.1",
+  "fire==0.7.1",
+  "openai==1.99.9",
+  "imageio==2.37.0",
+  "matplotlib==3.10.6",
+  "backports.strenum==1.3.1",
+]
+
+[project.optional-dependencies]
+openvla = [
+  "transformers==4.49.0",
+  "timm==0.9.10",
+]
+spatialvla = [
+  "scipy==1.15.3",
+  "transformers==4.48.1",
+]
+rt1 = [
+  "flax==0.10.2",
+  "jax[cuda12]==0.6.2",
+  "tensorflow-hub==0.16.1",
+]
+octo = [
+  "octo @ git+https://github.com/octo-models/octo.git",
+  "gym>=0.26",
+  "chex==0.1.85",
+  "optax==0.1.5",
+  "tensorflow-probability==0.24.0",
+  "tensorflow==2.19.1",
+  "jax[cuda12]==0.4.29",
+  "distrax==0.1.5",
+  "flax==0.8.4",
+  "ml_collections>=0.1.0",
+  "absl-py>=0.12.0",
+  "scipy==1.12.0",
+  "wandb>=0.12.14",
+  "einops>=0.6.1",
+  "imageio>=2.31.1",
+  "moviepy>=1.0.3",
+  "pre-commit==3.3.3",
+  "transformers==4.49.0",
+  "tensorflow-hub==0.16.1",
+  "tensorflow-text==2.19.0",
+  "tensorflow-datasets==4.9.3",
+  "tensorflow-graphics==2021.12.3",
+  "tf-keras==2.19.0",
+  "tensorflow_keras==0.1",
+  "plotly>=5.16.1",
+]
+
+[project.urls]
+homepage = "https://world-model-eval.github.io/"
+repository = "https://github.com/world-model-eval/world-model-eval"
+
+[project.scripts]
+world-model-eval-openvla = "world_model_eval.run_openvla:main"
+world-model-eval-octo = "world_model_eval.run_octo:main"
+world-model-eval-spatialvla = "world_model_eval.run_spatialvla:main"
+world-model-eval-rt1 = "world_model_eval.run_rt1:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.exclude-package-data]
+"world_model_eval" = ["*.pt"]

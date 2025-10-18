@@ -1,4 +1,6 @@
-"""Defines variants of the EfficientNet model.
+"""Code borrowed from https://github.com/google-deepmind/open_x_embodiment/blob/main/models/efficientnet.py
+
+Defines variants of the EfficientNet model.
 
 Currently implements the follow variants:
 - EfficientNetWithFilm - EfficientNet backbone with FiLM-conditioning applied.
@@ -13,7 +15,7 @@ from flax.linen import initializers
 import jax
 from jax import numpy as jnp
 
-import film_conditioning
+from . import film_conditioning
 
 
 MEAN_RGB = [0.485, 0.456, 0.406]

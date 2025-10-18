@@ -1,4 +1,6 @@
-"""Jax implementation of RT-1 / RT-1-X (https://arxiv.org/abs/2212.06817).
+"""Code borrowed from https://github.com/google-deepmind/open_x_embodiment/blob/main/models/rt1.py
+
+Jax implementation of RT-1 / RT-1-X (https://arxiv.org/abs/2212.06817).
 
 This is based on the tensorflow implementation in:
 https://github.com/google-research/robotics_transformer and also includes
@@ -13,9 +15,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import efficientnet
-import film_conditioning
-import token_learner
+from . import efficientnet
+from . import film_conditioning
+from . import token_learner
 
 
 class FFNOptions(enum.Enum):

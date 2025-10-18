@@ -14,39 +14,109 @@ Stanford University<sup>1</sup> &nbsp;&nbsp; New York University<sup>2</sup> &nb
 
 ---
 
-### New: [Policy Rollout Notebook](robot_evaluation.ipynb)
-
-You can use this notebook to rollout OpenVLA in the Bridge environment.
-
----
-
 ## Overview
 
-This repository contains the implementation accompanying the paper [**Evaluating Robot Policies in a World Model**](https://arxiv.org/abs/2506.00613).  
+This repository contains the evaluation harness used in *Evaluating Robot Policies in a World Model*. It bundles
 
-News:
-- 6/24/25: Dataset download script and VLM reward script released
-- 6/11/25: Initial training code released
-
-TODO:
-- [x] Release dataset preparation scripts
+- the pretrained diffusion world model,
+- policy-specific runners for OpenVLA, Octo, SpatialVLA, and RT-1-X, and
+- utilities for dataset conversion and automatic VLM scoring.
 
 ---
 
 ## Installation
 
-```bash
-# Install PyTorch (replace cu124 with your local CUDA version)
-pip install --upgrade pip
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+Install the package in editable mode (optionally with extras for specific policies):
 
-# Install other dependencies
-pip install transformers diffusers accelerate fire einops pytorchvideo tqdm imageio matplotlib gdown openai bs4
-```
+   ```bash
+   pip install -e .[openvla,spatialvla,octo,rt1]
+   ```
+
+   Extras are additive—omit the ones you do not need. Some stacks have additional one-off steps:
+
+  - **Octo** –
+    1. install the dlimp library: `pip install git+https://github.com/kvablack/dlimp@5edaa4691567873d495633f2708982b42edf1972 --no-deps`
+    2. edit the installed Octo package (typically under your Python site-packages) and update `octo/utils/typing.py` so that it defines `PRNGKey = jax.random.PRNGKey`.
+   - **RT-1-X** – obtain the official JAX checkpoint from the [Open X-Embodiment release](https://github.com/google-deepmind/open_x_embodiment?tab=readme-ov-file#rt-1-x-jax-checkpoint).
 
 ---
 
-## Quick Start
+## World-model checkpoint
+
+The evaluation runners require a diffusion world-model checkpoint, e.g. `mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt` (≈9 GB).
+
+1. Set the file-server URL and the checkpoint filename you want:
+
+  ```python
+  FILESERVER_URL = "https://85daf289d906.ngrok.app"  # This might change.
+  ckpt_path = "mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt"  # Choose any of the hosted files.
+  ```
+
+2. Download the checkpoint if it is not already present alongside your workspace:
+
+  ```python
+  from pathlib import Path
+  import os
+
+  if not Path(ckpt_path).exists():
+     ckpt_url = FILESERVER_URL + "/" + ckpt_path
+     print(f"{ckpt_url=}")
+     os.system(f"wget {ckpt_url}")
+  ```
+
+---
+
+## Prepare evaluation data
+
+Point every runner’s `--root-dir` flag at the directory whose subfolders contain `*.png` + metadata pairs. The helper `discover_trials` recursively discovers tasks from that root.
+
+---
+
+### OpenVLA
+
+```bash
+world-model-eval-openvla \
+  --root-dir /path/to/tasks \
+  --checkpoint-path ~/checkpoints/world-model/mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt \
+  --model-name openvla-7b \
+  --save-video --video-out-dir ./rollouts/openvla
+```
+
+### SpatialVLA
+
+```bash
+world-model-eval-spatialvla \
+  --root-dir /path/to/tasks \
+  --checkpoint-path ~/checkpoints/world-model/mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt \
+  --model-name spatialvla-4b-224-pt
+```
+
+### Octo
+
+```bash
+world-model-eval-octo \
+  --root-dir /path/to/tasks \
+  --checkpoint-path ~/checkpoints/world-model/mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt \
+  --model-name octo-base-1.5
+```
+
+### RT-1-X
+
+The RT-1 runner uses Abseil flags:
+
+```bash
+world-model-eval-rt1 \
+  --root_dir /path/to/tasks \
+  --checkpoint_path /path/to/rt1x_checkpoint \
+  --world_model_checkpoint ~/checkpoints/world-model/mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt
+```
+
+Pass `--save_video` / `--video_out_dir` counterparts where available if you want MP4 rollouts.
+
+---
+
+## Training quick start
+
 This is how you launch training. It will train on the tiny 10-example dataset in `sample_data/`.
 ```bash
 # Replace N with the number of available GPUs
@@ -62,17 +132,17 @@ To train on the Open X-Embodiment datasets we used in the paper:
 # based on the original Open X-Embodiment repo.
 pip install tensorflow tensorflow_datasets
 # For example, download just the RT-1 dataset:
-python download_data.py --dataset_name rt_1
+python -m world_model_eval.download_data --dataset_name rt_1
 # By default the data will be written to ./converted_datasets.
 # To choose your own output directory:
-python download_data.py --dataset_name rt_1 --output_dir <your output dir>
+python -m world_model_eval.download_data --dataset_name rt_1 --output_dir <your output dir>
 ```
-See `download_data.py` for more dataset names to choose from.
+See `world_model_eval/download_data.py` for more dataset names to choose from.
 
 
 Then launch training with the correct dataset path:
 ```bash
-torchrun --nproc_per_node=N train.py --dataset_dir ./converted_datasets --subset_names rt_1
+torchrun --nproc_per_node=N -m world_model_eval.train --dataset_dir ./converted_datasets --subset_names rt_1
 # Replace ./converted_datasets if your path is different.
 ```
 You can enter a comma separated list for `subset_names` to train on a mixture of multiple datasets. For example, after downloading the `rt_1` and `bridge_v2` datasets, you can do `--subset_names rt_1,bridge_v2` to train on both the RT-1 and Bridge V2 datasets.
@@ -82,14 +152,7 @@ Since Bridge V2 was not included in the original Open X-Embodiment dataset, you'
 ```
 wget -r -np -R "index.html*" https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/bridge_dataset/
 ```
-Then, convert the dataset to our format with `python download_data.py --dataset_name bridge_v2`, changing `BRIDGE_V2_PATH` at the top of the script if necessary. Since Bridge V2 is a superset of Bridge V1, choose between either downloading `bridge` or `bridge_v2`.
-
-## VLM-based reward labeling
-This script demonstrates how we use GPT-4o to judge the success of generated policy rollouts:
-```bash
-python vlm_reward.py --video_path <path to your .mp4> --task <rollout task instructions>
-```
-
+Then, convert the dataset to our format with `python -m world_model_eval.download_data --dataset_name bridge_v2`, changing `BRIDGE_V2_PATH` at the top of the script if necessary. Since Bridge V2 is a superset of Bridge V1, choose between either downloading `bridge` or `bridge_v2`.
 
 ---
 
@@ -99,7 +162,7 @@ If you find this work useful, please cite:
 
 ```text
 @misc{quevedo2025evaluatingrobotpoliciesworld,
-      title={Evaluating Robot Policies in a World Model}, 
+      title={Evaluating Robot Policies in a World Model},
       author={Julian Quevedo and Percy Liang and Sherry Yang},
       year={2025},
       eprint={2506.00613},

@@ -15,10 +15,10 @@ from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import torch.distributed as dist
-from dataset import OpenXMP4VideoDataset
-from model import DiT
-from vae import VAE
-from diffusion import Diffusion, FlowMatching
+from .dataset import OpenXMP4VideoDataset
+from .model import DiT
+from .vae import VAE
+from .diffusion import Diffusion, FlowMatching
 from tensorboardX import SummaryWriter
 import os
 

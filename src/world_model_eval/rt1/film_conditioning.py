@@ -1,4 +1,6 @@
-"""Film-Conditioning layer.
+"""Code borrowed from https://github.com/google-deepmind/open_x_embodiment/blob/main/models/film_conditioning.py
+
+Film-Conditioning layer.
 
 Related papers:
 - https://arxiv.org/abs/1709.07871
