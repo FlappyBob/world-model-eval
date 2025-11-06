@@ -43,26 +43,12 @@ Install the package in editable mode (optionally with extras for specific polici
 
 ## World-model checkpoint
 
-The evaluation runners require a diffusion world-model checkpoint, e.g. `mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt` (≈9 GB).
+The evaluation runners require a diffusion world-model checkpoint, e.g. `mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt` (≈9 GB). This checkpoint is available via this [Google Drive link](https://drive.google.com/file/d/1uiRP2BuavapMsyP9Cbr25mi_ymk9SEJb/view?usp=sharing):
 
-1. Set the file-server URL and the checkpoint filename you want:
-
-  ```python
-  FILESERVER_URL = "https://85daf289d906.ngrok.app"  # This might change.
-  ckpt_path = "mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt"  # Choose any of the hosted files.
-  ```
-
-2. Download the checkpoint if it is not already present alongside your workspace:
-
-  ```python
-  from pathlib import Path
-  import os
-
-  if not Path(ckpt_path).exists():
-     ckpt_url = FILESERVER_URL + "/" + ckpt_path
-     print(f"{ckpt_url=}")
-     os.system(f"wget {ckpt_url}")
-  ```
+```bash
+$ pip install gdown
+$ gdown 1uiRP2BuavapMsyP9Cbr25mi_ymk9SEJb
+```
 
 ---
 
