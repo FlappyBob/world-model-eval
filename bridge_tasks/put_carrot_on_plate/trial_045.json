@@ -1,0 +1,6 @@
+{
+  "instruction": "place the carrot on plate",
+  "partial_credit_criteria": "Pick up the carrot.",
+  "source": "bridge_v2",
+  "original_url": "https://rail.eecs.berkeley.edu/datasets/bridge_release/raw/bridge_data_v1/berkeley/toysink2_bww/put_carrot_on_plate/2021-06-13_12-02-29/raw/traj_group0/traj1/images0/im_0.jpg"
+}
