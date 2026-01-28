@@ -72,7 +72,8 @@ def evaluate_spatialvla(wm, vla, processor, trials, retries=1, rollout_length=40
                 rollout_video = np.stack(frames)
                 if save_video and video_out_dir:
                     vid_name = Path(trial["trial_png"]).stem
-                    media.write_video(str(Path(video_out_dir) / f"{vid_name}.mp4"), rollout_video, fps=20)
+                    # Use bitrate to avoid ffmpeg '-qp'/'-crf' options on older builds.
+                    media.write_video(str(Path(video_out_dir) / f"{vid_name}.mp4"), rollout_video, fps=20, bps=5_000_000)
 
                 score = predict(rollout_video, trial)
                 results.append({

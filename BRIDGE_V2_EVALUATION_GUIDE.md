@@ -13,17 +13,8 @@
    - 任务：`put_carrot_on_plate`
    - 试验数：54 个
    - 数据大小：19MB
-   - 位置：`/workspace/world-model-eval/bridge_tasks/`
    - 状态：已验证，格式正确
 
-3. ✅ 系统资源充足
-   - 可用磁盘：277GB
-   - 可用内存：231GB
-   - GPU：NVIDIA GeForce RTX 5090
-
-## 🚀 快速开始
-
-### 步骤 1: 下载世界模型检查点
 
 ```bash
 cd /workspace/world-model-eval

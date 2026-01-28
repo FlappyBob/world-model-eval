@@ -1,0 +1,56 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --gres=gpu:a100:2
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=80G
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=a100_short,a100_long
+#SBATCH --job-name=two-day
+#SBATCH --output=logs/%j.out
+#SBATCH --error=logs/%j.err
+
+### get nodes
+# nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
+# head_node=${nodes[0]}
+# head_node_ip=$(ssh $head_node hostname --ip-address)
+# echo head_node_ip: $head_node_ip
+cd /gpfs/scratch/sy3535/code/world-model-eval
+module load anaconda3
+# conda init
+# conda activate worldgym
+
+export BRIDGE_V2_PATH="/gpfs/scratch/sy3535/data/bridge_dataset/tfds/bridge_dataset/1.0.0"
+export CONVERTED_DIR="/gpfs/scratch/sy3535/converted_datasets"
+
+if [ ! -d "$CONVERTED_DIR/bridge_v2/train" ]; then
+  python -m world_model_eval.download_data --dataset_name bridge_v2 --output_dir "$CONVERTED_DIR"
+fi
+
+echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+nvidia-smi
+
+export INPUT_H=256
+export INPUT_W=256
+export N_FRAMES=10
+export FRAME_SKIP=1
+export SUBSET_NAMES="bridge_v2"
+export ACTION_DIM=10
+export BATCH_SIZE=8
+export NUM_WORKERS=32
+
+# 计算 1 个 epoch 的 step 数
+MAX_TRAIN_STEPS=125_000
+echo "Max train steps : ${MAX_TRAIN_STEPS}"
+
+torchrun --nproc_per_node=${SLURM_GPUS_ON_NODE:-1} -m world_model_eval.train \
+  --dataset_dir "$CONVERTED_DIR" \
+  --subset_names "$SUBSET_NAMES" \
+  --input_h "$INPUT_H" \
+  --input_w "$INPUT_W" \
+  --n_frames "$N_FRAMES" \
+  --frame_skip "$FRAME_SKIP" \
+  --action_dim "$ACTION_DIM" \
+  --batch_size "$BATCH_SIZE" \
+  --num_workers "$NUM_WORKERS" \
+  --max_train_steps "$MAX_TRAIN_STEPS"

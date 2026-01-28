@@ -1,0 +1,20 @@
+# Extra runtime requirements / reminders for HPC
+#
+# System deps (install via module or conda):
+#   module load ffmpeg
+#   conda install -c conda-forge ffmpeg -y
+#
+# Needed by mediapy.write_video for --save-video
+ffmpeg
+
+# If you hit CXXABI errors, install or load a newer libstdc++:
+#   conda install -c conda-forge libstdcxx-ng libgcc-ng -y
+#   module load gcc/<newer>
+# libstdcxx-ng
+# libgcc-ng
+
+# Python packages often needed for training/conversion:
+#   pip install tensorflow tensorflow_datasets tensorboardX
+tensorflow
+tensorflow_datasets
+tensorboardX

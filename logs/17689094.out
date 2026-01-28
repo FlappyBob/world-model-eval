@@ -1,0 +1,16 @@
+Job ID: 17689094
+Node list: a100-[4006,4033]
+Working dir: /gpfs/scratch/sy3535/code/world-model-eval
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/condabin/conda
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/bin/conda
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/bin/conda-env
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/bin/activate
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/bin/deactivate
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/etc/profile.d/conda.sh
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/etc/fish/conf.d/conda.fish
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/shell/condabin/Conda.psm1
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/shell/condabin/conda-hook.ps1
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/lib/python3.11/site-packages/xontrib/conda.xsh
+no change     /gpfs/share/apps/anaconda3/gpu/2023.09/etc/profile.d/conda.csh
+no change     /gpfs/home/sy3535/.bashrc
+No action taken.

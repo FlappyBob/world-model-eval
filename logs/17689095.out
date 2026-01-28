@@ -1,0 +1,4 @@
+Job ID: 17689095
+Node list: a100-[4006,4033]
+Working dir: /gpfs/scratch/sy3535/code/world-model-eval
+Max train steps : 125_000

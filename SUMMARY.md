@@ -23,11 +23,6 @@
 - ✅ Octo (base-1.5)
 - ❌ RT-1 (不支持，JAX 版本冲突)
 
-**GPU 配置**:
-- 型号: NVIDIA GeForce RTX 5090
-- CUDA: 12.8
-- 状态: ✅ 正常工作
-
 ### 2. 评估数据准备 ✅
 
 **Bridge V2 数据**:

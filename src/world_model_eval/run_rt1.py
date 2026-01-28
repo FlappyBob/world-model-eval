@@ -270,7 +270,8 @@ def evaluate_rt1(wm: WorldModel, policy: RT1Policy, trials, rollout_length=40, r
           target_dir.mkdir(parents=True, exist_ok=True)
           stem = trial_png.stem
           out_name = f"{stem}.mp4"
-          media.write_video(str(target_dir / out_name), rollout_video, fps=20)
+          # Use bitrate to avoid ffmpeg '-qp'/'-crf' options on older builds.
+          media.write_video(str(target_dir / out_name), rollout_video, fps=20, bps=5_000_000)
 
         score = predict(rollout_video, trial)
         results.append({

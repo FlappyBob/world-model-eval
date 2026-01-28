@@ -1,0 +1,60 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=80G
+#SBATCH --time=1-00:00:00
+#SBATCH --gres=gpu:a100:1
+#SBATCH --partition=a100_short,a100_long
+#SBATCH --job-name=one-day
+#SBATCH --output=logs/%j.out
+#SBATCH --error=logs/%j.err
+
+echo "Job ID: ${SLURM_JOB_ID}"
+echo "Node list: ${SLURM_JOB_NODELIST}"
+echo "Working dir: $(pwd)"
+
+# Activate environment (edit paths if needed)
+if [[ -f ./activate_env.sh ]]; then
+  source ./activate_env.sh
+fi
+
+# ---- Evaluation config (edit these) ----
+ROOT_DIR="/path/to/tasks"
+WORLD_MODEL_CKPT="$HOME/checkpoints/world-model/mixed_openx_9robots_20frames_0p1actiondropout_580ksteps.pt"
+RUNNER="openvla"   # openvla | spatialvla | octo | rt1
+MODEL_NAME="openvla-7b"
+VIDEO_DIR="./rollouts/openvla"
+RT1_CKPT="/path/to/rt1x_checkpoint"
+
+case "${RUNNER}" in
+  openvla)
+    world-model-eval-openvla \
+      --root-dir "${ROOT_DIR}" \
+      --checkpoint-path "${WORLD_MODEL_CKPT}" \
+      --model-name "${MODEL_NAME}" \
+      --save-video --video-out-dir "${VIDEO_DIR}"
+    ;;
+  spatialvla)
+    world-model-eval-spatialvla \
+      --root-dir "${ROOT_DIR}" \
+      --checkpoint-path "${WORLD_MODEL_CKPT}" \
+      --model-name "${MODEL_NAME}"
+    ;;
+  octo)
+    world-model-eval-octo \
+      --root-dir "${ROOT_DIR}" \
+      --checkpoint-path "${WORLD_MODEL_CKPT}" \
+      --model-name "octo-base-1.5"
+    ;;
+  rt1)
+    world-model-eval-rt1 \
+      --root_dir "${ROOT_DIR}" \
+      --checkpoint_path "${RT1_CKPT}" \
+      --world_model_checkpoint "${WORLD_MODEL_CKPT}"
+    ;;
+  *)
+    echo "Unknown RUNNER: ${RUNNER}"
+    exit 1
+    ;;
+esac

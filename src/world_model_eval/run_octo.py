@@ -86,7 +86,8 @@ def evaluate_octo(wm, vla, trials, rollout_length=40, retries=1,
                 target_dir.mkdir(parents=True, exist_ok=True)
                 vid_name = trial_png.stem
                 out_name = f"{vid_name}.mp4"
-                media.write_video(str(target_dir / out_name), rollout_video, fps=20)
+                # Use bitrate to avoid ffmpeg '-qp'/'-crf' options on older builds.
+                media.write_video(str(target_dir / out_name), rollout_video, fps=20, bps=5_000_000)
             score = predict(rollout_video, trial)
             results.append({
                 "task_key": trial["task_key"],

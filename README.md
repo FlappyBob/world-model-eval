@@ -165,4 +165,3 @@ If you find this work useful, please cite:
 - [DiT](https://github.com/facebookresearch/DiT)
 - [Oasis](https://github.com/etched-ai/open-oasis)
 - [open_x_embodiment](https://github.com/google-deepmind/open_x_embodiment)
-

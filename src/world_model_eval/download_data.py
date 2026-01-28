@@ -16,8 +16,13 @@ import functools
 
 import torch
 from torchvision.io import write_video
+import os
 
-BRIDGE_V2_PATH = "rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/bridge_dataset/1.0.0/"
+# Allow overriding Bridge V2 TFDS location via env var for local datasets.
+BRIDGE_V2_PATH = os.environ.get(
+    "BRIDGE_V2_PATH",
+    "rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/bridge_dataset/1.0.0/",
+)
 
 def map_observation(
     to_step: Dict[str, Any],
